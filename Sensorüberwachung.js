@@ -9,6 +9,8 @@ const path = '0_userdata.0.Kontrollzentrum.Sensorueberwachung'
 // wie sieht die Zeit in der Telegramnachrichct aus
 const options = {hour: 'numeric', minute:'numeric', month: 'numeric', day: 'numeric'}
 
+//telegramm user
+const user = 'Tim'
 
 var msg = {}
 
@@ -23,7 +25,7 @@ schedule('30 7 * * *', function() { msg = {}})
 
 schedule('*/15 * * * *', work)
 schedule('15 10 * * 7', function(){work(true)})
-// 0_userdata.0.Kontrollzentrum
+
 async function work(long = false){
     let devs = $('state(functions='+enumFunctions+')')
 
@@ -37,7 +39,7 @@ async function work(long = false){
             if (long) cts = v. langzeit
             v = readDP(dp)
             let alarm = false;
-            switch (v.art) {
+            switch (v.art) {//"ts, lc, true, false Worauf geprüft werden soll"},
                 case "ts":
                 lc = getState(v.dp).ts
                 alarm = lc + cts < now            
@@ -51,7 +53,7 @@ async function work(long = false){
                 if (v.art == true) alarm = !alarm
                 if (long && !alarm) alarm = !getState(v.dp).ts + cts < now
                 break;
-            } //"ts, lc, true, false Worauf geprüft werden soll"},
+            } 
             if (alarm) {
                 if(msg[dp] === undefined) msg[dp] = {} 
                 msg[dp].ts = formatDate(lc,"hh:mm / DD.MM")
@@ -76,7 +78,6 @@ async function work(long = false){
         m.msg = message
     }
     let tempdevs = $('state(id='+path+'.*.dp)')
-    //log(tempdevs)
     for (let a=0;a<tempdevs.length;a++) {
         let dp = getState(tempdevs[a]).val
         let index = -1
@@ -93,13 +94,13 @@ async function work(long = false){
     if (message) {
         if (long) message = 'Gerätelangzeitüberwachung\n' + message
         else message = 'Geräte offline\n' + message
-        sendTo('telegram', {user: 'Tim', text: message });         
+        sendTo('telegram', {user: user, text: message });         
     }
     return Promise.resolve(true);
 }
 
 async function deleteDP(dp) {
-    let id = dp.split('.').join('-')// + '-' + dp.hashCode() .splice(0,3)
+    let id = dp.split('.').join('-')
     let tPath = path +'.'+ id
     if (existsObject(tPath)) {
         for (let p in stateDef) {
@@ -109,7 +110,7 @@ async function deleteDP(dp) {
     }
 }
 async function readDP(dp) {
-    let id = dp.split('.').join('-')// + '-' + dp.hashCode() .splice(0,3)
+    let id = dp.split('.').join('-')
     let tPath = path +'.'+ id
     let result = {} 
     if (existsObject(tPath)) {
@@ -175,12 +176,5 @@ const stateDef = {
     "zeit": {"type": "string", "def":"30m", "desc": "d,h,m"},
     "langzeit": {"type": "string", "def":"14d", "desc": "Wie zeit, jedoch wird der Zeitstempel(ts) geprüft, ob dieser aktualisiert wurde"},
 }
-
-
-/*
-    1.  Zeitraum der getestet werden soll
-    2.  ts = überprüfe die Zeit zwischen den Änderungen
-        bool = teste ob State true ist
-*/
 
 init()
