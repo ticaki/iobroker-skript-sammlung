@@ -58,7 +58,7 @@ async function work(long = false){
             if (alarm)log(dp)
             if (alarm) {
                 if(msg[dp] === undefined) msg[dp] = {} 
-                msg[dp].ts = formatDate(lc,"hh:mm / DD.MM")
+                msg[dp].ts = formatDate(lc,options)
                 let tdp = dp.split('.').slice(0, -1).join('.')
                 if (existsObject(tdp)) {
                     msg[dp].name = getObject(tdp).common.name
