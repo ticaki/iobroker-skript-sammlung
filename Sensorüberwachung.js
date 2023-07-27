@@ -25,7 +25,7 @@ schedule('*/15 * * * *', work)
 schedule('15 10 * * 7', function(){work(true)})
 // 0_userdata.0.Kontrollzentrum
 async function work(long = false){
-    let devs = $('state(functions=online)')
+    let devs = $('state(functions='+enumFunctions+')')
 
     const now = new Date().getTime()
     for (let a=0; a<devs.length; a++ ) {
