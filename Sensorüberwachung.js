@@ -7,7 +7,7 @@ const enumFunctions = 'online' // die Funktion die in Aufzählung für dieses Sk
 const path = '0_userdata.0.Kontrollzentrum.Sensorueberwachung'
 
 // wie sieht die Zeit in der Telegramnachrichct aus
-const options = {hour: 'numeric', minute:'numeric', month: 'numeric', day: 'numeric'}
+const options = "hh:mm / DD.MM"
 
 //telegramm user
 const user = 'Tim'
@@ -56,7 +56,7 @@ async function work(long = false){
             } 
             if (alarm) {
                 if(msg[dp] === undefined) msg[dp] = {} 
-                msg[dp].ts = formatDate(lc,"hh:mm / DD.MM")
+                msg[dp].ts = formatDate(lc,options)
                 let tdp = dp.split('.').slice(0, -1).join('.')
                 if (existsObject(tdp)) {
                     msg[dp].name = getObject(tdp).common.name
