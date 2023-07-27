@@ -15,7 +15,7 @@ const user = 'Tim'
 var msg = {}
 
 async function init() {
-    if (!existsState(path)) await createFolderAsync(path, 'Geräteüberwachung')
+    if (!existsObject(path)) await createFolderAsync(path, 'Geräteüberwachung')
     work()
     return Promise.resolve(true);
 }
@@ -24,6 +24,7 @@ async function init() {
 schedule('30 7 * * *', function() { msg = {}})
 
 schedule('*/15 * * * *', work)
+
 schedule('15 10 * * 7', function(){work(true)})
 
 async function work(long = false){
@@ -35,28 +36,29 @@ async function work(long = false){
             let dp = devs[a]
             let lc = getState(dp).lc // ts oder lc
             let v = {}
+            v = await readDP(dp)
             let cts = v.zeit
             if (long) cts = v. langzeit
-            v = readDP(dp)
             let alarm = false;
             switch (v.art) {//"ts, lc, true, false Worauf geprüft werden soll"},
-                case "ts":
+                case 0:
                 lc = getState(v.dp).ts
                 alarm = lc + cts < now            
                 break;
-                case "lc":
+                case 1:
                 alarm = getState(v.dp).lc + cts < now
                 break;
-                case "true":
-                case "false":
+                case 2:
+                case 3:
                 alarm = getState(v.dp).val 
-                if (v.art == true) alarm = !alarm
+                if (v.art == 3) alarm = !alarm
                 if (long && !alarm) alarm = !getState(v.dp).ts + cts < now
                 break;
             } 
+            if (alarm)log(dp)
             if (alarm) {
                 if(msg[dp] === undefined) msg[dp] = {} 
-                msg[dp].ts = formatDate(lc,options)
+                msg[dp].ts = formatDate(lc,"hh:mm / DD.MM")
                 let tdp = dp.split('.').slice(0, -1).join('.')
                 if (existsObject(tdp)) {
                     msg[dp].name = getObject(tdp).common.name
@@ -127,6 +129,7 @@ async function readDP(dp) {
             let def = stateDef[p].def
             if (p == "id") def = id
             if (p == "dp") def = dp
+            if (stateDef[p].states !== undefined) o.states = stateDef[p].states
             await createStateAsync(tPath+'.'+p, def, o)
             result[p] = def
         }
@@ -171,7 +174,7 @@ async function readDP(dp) {
 const stateDef = {
     "id": {"type": "string", "def":"", "desc": "diese Id"},
     "dp": {"type": "string", "def":"", "desc": "ursprüngliche ID"},
-    "art": {"type": "string", "def":"ts", "desc": "ts, lc, true, false Worauf geprüft werden soll"},
+    "art": {"type": "number", "def":0, "desc": "ts, lc, true, false Worauf geprüft werden soll", states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline"}},
     "activ": {"type": "boolean", "def":true, "desc": "An/Auschalten"},
     "zeit": {"type": "string", "def":"30m", "desc": "d,h,m"},
     "langzeit": {"type": "string", "def":"14d", "desc": "Wie zeit, jedoch wird der Zeitstempel(ts) geprüft, ob dieser aktualisiert wurde"},
