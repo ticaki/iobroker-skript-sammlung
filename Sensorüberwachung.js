@@ -47,9 +47,10 @@ const stateDef = {
     "_default": {
         "id": {"type": "string", "def":"", "desc": "diese Id"},
         "dp": {"type": "string", "def":"", "desc": "ursprüngliche ID"},
-        "art": {"type": "number", "def":0, "desc": "ts, lc, true, false Worauf geprüft werden soll", states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline"}},
+        "art": {"type": "number", "def":0, "desc": "ts, lc, true, false Worauf geprüft werden soll", states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummber > testwert = offline"}},
         "activ": {"type": "boolean", "def":true, "desc": "An/Auschalten"},
         "zeit": {"type": "string", "def":"30m", "desc": "d,h,m"},
+        "testwert": {"type": "number", "def":0, "desc": "zu den Arten größer und kleiner der Testwert"},
         "ts_langzeit_prüfung": {"type": "boolean", "def":true, "desc": "Langzeitprüfung aktiv"},
         "langzeit": {"type": "string", "def":"14d", "desc": "Wie zeit, jedoch wird der Zeitstempel(ts) einmal die Wochhe geprüft, ob dieser aktualisiert wurde"},
     }, 
@@ -142,6 +143,12 @@ async function work(long = false){
                 alarm = getState(v.dp).val 
                 if (v.art == 3) alarm = !alarm
                 if (long && !alarm) alarm = !getState(v.dp).ts + cts < now
+                break;
+                case 4:
+                alarm = getState(v.dp).val < v.testwert 
+                break;
+                case 5:
+                alarm = getState(v.dp).val > v.testwert
                 break;
             } 
             /*if (dp.indexOf('shelly.0.shellyplus1pm#48551999a770#1') != -1) {
@@ -243,11 +250,12 @@ async function readDP(dp) {
     }
     else tPath = pathToState +'.'+ id
     let result = {"devTyp": devTyp} 
-    if (existsObject(tPath)) {
+    if (false && existsObject(tPath)) {
         for (let p in stateDef["_default"]) {
             result[p] = getState(tPath +'.'+ p).val
             if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
         }
+        extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummber > testwert = offline"}}})
         result.id = tPath
     } else {
         let name 
