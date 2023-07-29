@@ -3,6 +3,7 @@
 
 /* Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram */
 /* Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. */
+/* v0.2.1 Mit Versionsverwaltung, Fehler der vorversion im Datenbaum werden behoben */
 
 const setFunctionToAllStates = false
 
@@ -21,7 +22,8 @@ const user = 'Tim'
 schedule('30 7 * * *', function() { msg = {}})
 
 //für ein Update ab hier kopieren 1234567
-
+const version = 0.21
+var oldVersion = 0;
 // Den unter States befindlichen Punkten wird die functions enum zugewiesen wenn setFunctionToAllStates true ist
 // states die nicht mit einem enum versehen werden können und auch überwachte werden sollen
 const watchingDevice = {
@@ -33,7 +35,8 @@ const watchingDevice = {
         '*.UNREACH',
         'sonoff.*.Uptime',
         'shelly.*.uptime',
-        'nuki.*.timestamp'
+        'nuki.*.timestamp',
+        'zigbee2mqtt.*.last_seen'
     ],
     scripts: [
         // hier jede Jasacriptinstanz eintragen, dieses Skript muß alleine auf einer eigenen laufen
@@ -79,7 +82,13 @@ const stateDef = {
             "art": {"def":3},
             "zeit": {"def":"15m"},
             "ts_langzeit_prüfung": {"def":false}
-        }
+        },
+        "last_seen": {
+            "stateTyp": "state",
+            "art": {"def":0},
+            "zeit": {"def":"1d"},
+        },
+        
     }
 }
 
@@ -94,10 +103,15 @@ async function init() {
             }
         }
     }
-
-    if (!existsObject(path)) await createFolderAsync(path, 'Ausfallüberwachung')
+    if (existsObject(path+'.version')) oldVersion = getState(path+'.version').val
+    if (!existsObject(path)) {
+        await createFolderAsync(path, 'Ausfallüberwachung')
+        if (!oldVersion) oldVersion = version
+    }
+    if (!existsObject(path+'.version')) await createStateAsync(path+'.version', '', {"type":'string', "name":'Skriptversionsnummer', "read":true, "write":false}, )
     if (!existsObject(pathToState)) await createFolderAsync(pathToState, 'Geräteüberwachung')
     if (!existsObject(pathToAdapter)) await createFolderAsync(pathToAdapter, 'Adapterüberwachung')
+    setState(path+'.version', version, true)
     work()
     return Promise.resolve(true);
 }
@@ -110,7 +124,7 @@ const paths = [pathToAdapter,pathToState,pathToScript]
 // Nachrichten werden nur einmal am Tag versendet, rücksetzen um 7:30 
 
 
-schedule('*/15 * * * *', work)
+setInterval(work, 900000)
 
 schedule('15 10 * * 7', function(){work(true)})
 
@@ -160,12 +174,23 @@ async function work(long = false){
                 log((lc+cts)/60000/60)
                 log(lc + cts < now)
             }*/
-            if (alarm)log(dp + ' nicht aktiv', 'warn')
+            if (alarm){
+                switch(v.devTyp) {
+                    case 'adapter':
+                    case 'script':
+                    log(dp + ' deaktiviert', 'warn')
+                    break
+                    case 'state':
+                    log(dp + ' offline', 'warn')
+                    break
+                }
+            }
             if (alarm) {
                 //log(v)
                 if(msg[dp] === undefined) msg[dp] = {} 
                 msg[dp].ts = formatDate(lc,options)
-                msg[dp].adapter = ''
+                //msg[dp].adapter = ''
+                msg[dp].devTyp = v.devTyp
                 let tdp = dp.split('.').slice(0, -1).join('.')
                 if (v.devTyp != "script" ) {
                     if (existsObject(v.id)) {
@@ -175,7 +200,7 @@ async function work(long = false){
                     } 
                     msg[dp].adapter = dp.split('.').slice(0,2).join('.')  
                 } else {
-                    msg[dp].adapter = v.devTyp
+                    //msg[dp].adapter = ''//v.devTyp
                     msg[dp].name = v.dp.split('.').slice(3).join('.')
                 }          
                 if (msg[dp].name.de !== undefined) msg[dp].name = msg[dp].name.de     
@@ -185,13 +210,19 @@ async function work(long = false){
             }
         } catch(e) {log(e);log(2)}
     }
+    let messageObj = {}
     let message = ''
     for (let dp in msg) {
         let m = msg[dp]
         if (m.msg !== undefined) continue
-        if (m.adapter) message += m.adapter+': '
-        message += m.name + " - " + m.ts + '\n'
-        m.msg = message
+        m.msg = ''
+        if (m.adapter !== undefined) {m.msg = m.adapter+': '}
+        m.msg += m.name + " - " + m.ts + '\n'
+        if (messageObj[m.devTyp] === undefined) messageObj[m.devTyp] = m.devTyp + ':\n'
+        messageObj[m.devTyp] += m.msg
+    }
+    for (let t in messageObj) {
+        message+=messageObj[t]+'\n'
     }
     let tempdevs = $('state(id='+path+'.*.dp)')
     for (let a=0;a<tempdevs.length;a++) {
@@ -209,7 +240,7 @@ async function work(long = false){
 
     if (message) {
         if (long) message = 'Geräte/Softwarelangzeitüberwachung\n' + message
-        else message = 'Geräte/Software offline\n' + message
+        else message = 'Geräte/Software offline\n\n' + message
         sendTo('telegram', {user: user, text: message });         
     }
     return Promise.resolve(true);
@@ -249,13 +280,17 @@ async function readDP(dp) {
         tPath = pathToScript +'.'+ id
     }
     else tPath = pathToState +'.'+ id
-    let result = {"devTyp": devTyp} 
+    var result = {"devTyp": devTyp} 
     if (existsObject(tPath)) {
         for (let p in stateDef["_default"]) {
-            result[p] = getState(tPath +'.'+ p).val
-            if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
+            if (!existsState(tPath +'.'+ p)) result = await _createSingleState(tPath, p, result)
+            else { 
+                result[p] = getState(tPath +'.'+ p).val
+                if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
+            }
         }
-        extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummer > testwert = offline"}}})
+        if (oldVersion < 0.21 && existsObject(tPath+'art')) deleteObject(tPath+'art')
+        if (oldVersion < 0.21) extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummer > testwert = offline"}}})
         result.id = tPath
     } else {
         let name 
@@ -269,15 +304,7 @@ async function readDP(dp) {
         await createDeviceAsync(tPath, name)
 
         for (let p in stateDef["_default"]) {
-            let o = {"type": stateDef["_default"][p].type, name:p, desc:stateDef["_default"][p].desc}
-            let def = stateDef["_default"][p].def
-            if (lastTag && stateDef["lastTag"][lastTag][p]) def = stateDef["lastTag"][lastTag][p].def
-            else if (firstTag && stateDef["firstTag"][firstTag][p]) def = stateDef["firstTag"][firstTag][p].def
-            if (p == "id") def = tPath
-            if (p == "dp") def = dp
-            if (stateDef["_default"][p].states !== undefined) o.states = stateDef["_default"][p].states
-            await createStateAsync(tPath+'.'+p, def, o)
-            result[p] = def
+            result = await _createSingleState(tPath, p, result)
         }
     }
     if (result.zeit !== undefined) {
@@ -315,6 +342,18 @@ async function readDP(dp) {
         result.langzeit = ts
     } else result.langzeit = 0
     return Promise.resolve(result);
+    async function _createSingleState(tPath, p, result) {
+        let o = {"type": stateDef["_default"][p].type, name:p, desc:stateDef["_default"][p].desc}
+        let def = stateDef["_default"][p].def
+        if (lastTag && stateDef["lastTag"][lastTag][p]) def = stateDef["lastTag"][lastTag][p].def
+        else if (firstTag && stateDef["firstTag"][firstTag][p]) def = stateDef["firstTag"][firstTag][p].def
+        if (p == "id") def = tPath
+        if (p == "dp") def = dp
+        if (stateDef["_default"][p].states !== undefined) o.states = stateDef["_default"][p].states
+        await createStateAsync(tPath+'.'+p, def, o)
+        result[p] = def
+        return Promise.resolve(result);
+    }
 }
 
 async function addToEnum(enumName, newStateId) {
@@ -335,7 +374,7 @@ async function addToEnum(enumName, newStateId) {
             } catch (e) {log(e + ' add id: ' + newStateId,'error')}
         }
     }
-    Promise.resolve(false);
+    return Promise.resolve(false);
 }
 
 init()
