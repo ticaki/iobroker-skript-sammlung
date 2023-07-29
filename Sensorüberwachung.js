@@ -89,7 +89,7 @@ async function init() {
         for (const idPart of watchingDevice.states) {
             let s = Array.prototype.slice.apply($('state(id='+idPart+')'))
             for (const id of s) {
-                addToEnum('enum.functions.'+enumFunctions,id)
+                await addToEnum('enum.functions.'+enumFunctions,id)
             }
         }
     }
@@ -314,7 +314,7 @@ async function addToEnum(enumName, newStateId) {
                 myEnum.ts = new Date().getTime();
                 await setObjectAsync(enumName, myEnum);
                 Promise.resolve(true);
-            } catch (e) {log(e,'error')}
+            } catch (e) {log(e + ' add id: ' + newStateId,'error')}
         }
     }
     Promise.resolve(false);
