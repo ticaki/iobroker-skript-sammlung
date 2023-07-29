@@ -108,7 +108,7 @@ async function init() {
         await createFolderAsync(path, 'Ausfallüberwachung')
         if (!oldVersion) oldVersion = version
     }
-    if (!existsObject(path+'.version')) await createStateAsync(path+'.version', '', {"type":'string', "name":'Skriptversionsnummer', "read":true, "write":false}, )
+    if (!existsObject(path+'.version')) await createStateAsync(path+'.version', 0, {"type":'number', "name":'Skriptversionsnummer', "read":true, "write":false}, )
     if (!existsObject(pathToState)) await createFolderAsync(pathToState, 'Geräteüberwachung')
     if (!existsObject(pathToAdapter)) await createFolderAsync(pathToAdapter, 'Adapterüberwachung')
     setState(path+'.version', version, true)
@@ -186,12 +186,9 @@ async function work(long = false){
                 }
             }
             if (alarm) {
-                //log(v)
                 if(msg[dp] === undefined) msg[dp] = {} 
                 msg[dp].ts = formatDate(lc,options)
-                //msg[dp].adapter = ''
                 msg[dp].devTyp = v.devTyp
-                let tdp = dp.split('.').slice(0, -1).join('.')
                 if (v.devTyp != "script" ) {
                     if (existsObject(v.id)) {
                         msg[dp].name = getObject(v.id).common.name
@@ -200,7 +197,6 @@ async function work(long = false){
                     } 
                     msg[dp].adapter = dp.split('.').slice(0,2).join('.')  
                 } else {
-                    //msg[dp].adapter = ''//v.devTyp
                     msg[dp].name = v.dp.split('.').slice(3).join('.')
                 }          
                 if (msg[dp].name.de !== undefined) msg[dp].name = msg[dp].name.de     
@@ -243,6 +239,7 @@ async function work(long = false){
         else message = 'Geräte/Software offline\n\n' + message
         sendTo('telegram', {user: user, text: message });         
     }
+    oldVersion = version
     return Promise.resolve(true);
 }
 
@@ -258,6 +255,7 @@ async function deleteDP(dp) {
         }
     }
 }
+
 async function readDP(dp) {
     let firstTag, lastTag , devTyp = 'state'
     for (const d in stateDef.firstTag ) {
@@ -357,7 +355,7 @@ async function readDP(dp) {
 }
 
 async function addToEnum(enumName, newStateId) {
-    if (!existsObject(newStateId)) {
+    if (!await existsObjectAsync(newStateId)) {
         log(newStateId + ' not exist!', 'warn')
         return
     }
