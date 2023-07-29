@@ -119,7 +119,7 @@ async function work(long = false){
     for (const sel of watchingDevice.scripts ) devs = Array.prototype.slice.apply($('state(id='+sel+')')).concat(devs)
     const now = new Date().getTime()
     for (let a=0; a<devs.length; a++ ) {
-        //try {
+        try {
             let dp = devs[a]
             let lc = getState(dp).lc // ts oder lc
             let v = {}
@@ -127,7 +127,7 @@ async function work(long = false){
             let cts = v.zeit
             if (long && !v["ts_langzeit_prüfung"]) continue
             if (!v.activ) continue
-            if (long) cts = v. langzeit
+            if (long) cts = v.langzeit
             let alarm = false;
             switch (v.art) {//"ts, lc, true, false Worauf geprüft werden soll"},
                 case 0:
@@ -144,6 +144,15 @@ async function work(long = false){
                 if (long && !alarm) alarm = !getState(v.dp).ts + cts < now
                 break;
             } 
+            /*if (dp.indexOf('shelly.0.shellyplus1pm#48551999a770#1') != -1) {
+                log(dp)
+                log(v)
+                log(cts/60000/60)
+                log('jetzt:'+now/60000/60)
+                log(lc/60000/60)
+                log((lc+cts)/60000/60)
+                log(lc + cts < now)
+            }*/
             if (alarm)log(dp + ' nicht aktiv', 'warn')
             if (alarm) {
                 //log(v)
@@ -167,7 +176,7 @@ async function work(long = false){
             } else {
                 delete msg[dp]
             }
-        //} catch(e) {log(e);log(2)}
+        } catch(e) {log(e);log(2)}
     }
     let message = ''
     for (let dp in msg) {
@@ -265,16 +274,16 @@ async function readDP(dp) {
     if (result.zeit !== undefined) {
         let t = result.zeit
         let ts = 0;
-        if (t.lastIndexOf('d')) {
+        if (t.lastIndexOf('d') !== -1) {
             ts += parseInt(t.slice(0,-1))
         }
         ts *=24  
-        if (t.lastIndexOf('h')) {
+        if (t.lastIndexOf('h')!== -1) {
             ts += parseInt(t.slice(0,-1))
         } 
         ts*=60 
-        if (t.lastIndexOf('m')) {
-            ts += parseInt(t.slice(0,-1)) 
+        if (t.lastIndexOf('m')!== -1) {
+            ts += parseInt(t.slice(0,-1))
         }
         ts*=60000 
         result.zeit = ts
@@ -282,15 +291,15 @@ async function readDP(dp) {
     if (result.langzeit !== undefined) {
         let t = result.langzeit
         let ts = 0;
-        if (t.lastIndexOf('d')) {
+        if (t.lastIndexOf('d')!== -1) {
             ts += parseInt(t.slice(0,-1))
         }
         ts *=24  
-        if (t.lastIndexOf('h')) {
+        if (t.lastIndexOf('h')!== -1) {
             ts += parseInt(t.slice(0,-1))
         } 
         ts*=60 
-        if (t.lastIndexOf('m')) {
+        if (t.lastIndexOf('m')!== -1) {
             ts += parseInt(t.slice(0,-1)) 
         }
         ts*=60000 
