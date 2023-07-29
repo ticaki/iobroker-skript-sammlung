@@ -250,12 +250,12 @@ async function readDP(dp) {
     }
     else tPath = pathToState +'.'+ id
     let result = {"devTyp": devTyp} 
-    if (false && existsObject(tPath)) {
+    if (existsObject(tPath)) {
         for (let p in stateDef["_default"]) {
             result[p] = getState(tPath +'.'+ p).val
             if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
         }
-        extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummber > testwert = offline"}}})
+        //extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummber > testwert = offline"}}})
         result.id = tPath
     } else {
         let name 
