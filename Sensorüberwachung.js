@@ -312,7 +312,6 @@ async function addToEnum(enumName, newStateId) {
                 myEnum.common.members.push(newStateId);
                 myEnum.from = "system.adapter." + "0";
                 myEnum.ts = new Date().getTime();
-                log('enum:' + newStateId)
                 await setObjectAsync(enumName, myEnum);
                 Promise.resolve(true);
             } catch (e) {log(e,'error')}
