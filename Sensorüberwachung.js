@@ -161,8 +161,8 @@ async function work(long = false){
                 msg[dp].adapter = ''
                 let tdp = dp.split('.').slice(0, -1).join('.')
                 if (v.devTyp != "script" ) {
-                    if (existsObject(tdp)) {
-                        msg[dp].name = getObject(tdp).common.name
+                    if (existsObject(v.id)) {
+                        msg[dp].name = getObject(v.id).common.name
                     } else {
                         msg[dp].name = getObject(dp).common.name
                     } 
@@ -248,6 +248,7 @@ async function readDP(dp) {
             result[p] = getState(tPath +'.'+ p).val
             if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
         }
+        result.id = tPath
     } else {
         let name 
         if (devTyp !== 'script') {
@@ -264,7 +265,7 @@ async function readDP(dp) {
             let def = stateDef["_default"][p].def
             if (lastTag && stateDef["lastTag"][lastTag][p]) def = stateDef["lastTag"][lastTag][p].def
             else if (firstTag && stateDef["firstTag"][firstTag][p]) def = stateDef["firstTag"][firstTag][p].def
-            if (p == "id") def = id
+            if (p == "id") def = tPath
             if (p == "dp") def = dp
             if (stateDef["_default"][p].states !== undefined) o.states = stateDef["_default"][p].states
             await createStateAsync(tPath+'.'+p, def, o)
