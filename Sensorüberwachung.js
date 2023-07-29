@@ -1,17 +1,17 @@
-//bitte das folgende Skript noch drüber kopieren oder gleich als Globalskript anlegen
+//bitte das folgende Skript noch darüber kopieren oder gleich als globales Skript anlegen
 //globaleCreateFunktionen.js
 
 /* Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram */
+/* Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. */
 
 const setFunctionToAllStates = false
 
 const enumFunctions = 'online' // die Funktion die in Aufzählung für dieses Skript zur Verfügung gestellt wird, muß den überwachten States zu geordnet werden
 
-
 // Pfad an dem alles erstellt werden soll, hier kann man die Überwachung deaktivieren und einstellen
 const path = '0_userdata.0.Kontrollzentrum.Sensorueberwachung'
 
-// wie sieht die Zeit in der Telegramnachrichct aus
+// wie sieht die Zeit in der Telegramnachricht aus
 const options = "hh:mm / DD.MM"
 
 //telegramm user
@@ -19,6 +19,8 @@ const user = 'Tim'
 
 // Hier wird der Meldungsspeicher zurück gesetzt
 schedule('30 7 * * *', function() { msg = {}})
+
+//für ein Update ab hier kopieren 1234567
 
 // Den unter States befindlichen Punkten wird die functions enum zugewiesen wenn setFunctionToAllStates true ist
 // states die nicht mit einem enum versehen werden können und auch überwachte werden sollen
@@ -298,6 +300,10 @@ async function readDP(dp) {
 }
 
 async function addToEnum(enumName, newStateId) {
+    if (!existsObject(newStateId)) {
+        log(newStateId + ' not exist!', 'warn')
+        return
+    }
     let myEnum = await getObjectAsync(enumName);
     if (myEnum) {
         let pos = myEnum.common.members.indexOf(newStateId);
