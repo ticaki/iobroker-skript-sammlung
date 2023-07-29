@@ -47,7 +47,7 @@ const stateDef = {
     "_default": {
         "id": {"type": "string", "def":"", "desc": "diese Id"},
         "dp": {"type": "string", "def":"", "desc": "ursprüngliche ID"},
-        "art": {"type": "number", "def":0, "desc": "ts, lc, true, false Worauf geprüft werden soll", states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummber > testwert = offline"}},
+        "art": {"type": "number", "def":0, "desc": "ts, lc, true, false Worauf geprüft werden soll", states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummer > testwert = offline"}},
         "activ": {"type": "boolean", "def":true, "desc": "An/Auschalten"},
         "zeit": {"type": "string", "def":"30m", "desc": "d,h,m"},
         "testwert": {"type": "number", "def":0, "desc": "zu den Arten größer und kleiner der Testwert"},
@@ -255,7 +255,7 @@ async function readDP(dp) {
             result[p] = getState(tPath +'.'+ p).val
             if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
         }
-        //extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummber > testwert = offline"}}})
+        extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummer > testwert = offline"}}})
         result.id = tPath
     } else {
         let name 
