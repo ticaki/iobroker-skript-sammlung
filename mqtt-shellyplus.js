@@ -56,7 +56,9 @@ async function setValues(json, srcID) {
                         common[d] = def.common[d] 
                     }
                 }
-                await createStateAsync(id, result,common)
+                try {
+                    await createStateAsync(id, result,common)
+                } catch(e) {log(e)}
             }
         }
     }
