@@ -1,3 +1,7 @@
+//v0.11
+//Datenpunkt .ts löschen, 
+//.ts wird jetzt auch aktualisiert wenn der GetStatus() ein Update liefert
+
 const prefix = '0_userdata.0.MQTT' // darunter wird gespeichert
 const suchPrefix = 'mqtt.0.shellies2' // hier kommen die Daten her und begrenzen das ganze auf einen subtopic... Einfach das was im Topic bei allen Shellies gleich ist, muß hier stehen und davor die mqtt instanz
 const topicPrefix = 'shellies2' // hier muss der Teil von suchPrefix stehen der im Topic der shellys enthalten ist. Ohne die mqtt instanz
@@ -44,8 +48,21 @@ async function setValues(json, srcID) {
             let popName = temp[temp.length-1];
             if (!stateDefintion.hasOwnProperty(popName) ) popName = ''
             if (popName && stateDefintion[popName]["read"]!== undefined) {
-                    result = stateDefintion[popName]["read"](result)
+                result = stateDefintion[popName]["read"](result)
             } 
+            if (popName && stateDefintion[popName]["linked"] !== undefined) {
+                let a = 0;
+                let nid = stateDefintion[popName]["linked"], tnid = ''
+                while ( nid.replace("../",'') != nid) {
+                    nid = nid.replace("../", '')
+                    a++
+                    
+                }
+                temp = temp.slice(0, temp.length-a)
+                temp[temp.length-1] = nid
+                nid = temp.join('.')           
+                if (existsState(nid)) setState(nid,result,true)
+            }
             if (existsState(id)) {
                 setState(id, result, true)
             } else {
@@ -61,7 +78,9 @@ async function setValues(json, srcID) {
                 } catch(e) {log(e)}
             }
         }
+        return Promise.resolve(true);
     }
+    return Promise.resolve(true);
 }
 
 const stateDefintion = {
@@ -87,11 +106,21 @@ const stateDefintion = {
         "common": {
             "name": "seit letztem Reset",
             "role": "value.datetime",
-            "type": "string",
+            "type": "number",
+            "unit": "ms"
         },
         "trigger": false,
-        "read": function(r){return Math.round(r/1000)+' s'},
     },
+    "unixtime": {
+        "common": {
+            "name": "seit letztem Reset",
+            "role": "value.datetime",
+            "type": "number",
+            "unit": "ms"
+        },
+        "trigger": false,
+        "linked": "../ts" 
+    }
 }
 for (let d in stateDefintion) {
     if (stateDefintion[d].hasOwnProperty('trigger') && stateDefintion[d]["trigger"]) {
