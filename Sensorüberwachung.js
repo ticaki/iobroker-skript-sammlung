@@ -22,8 +22,9 @@ const user = 'Tim'
 schedule('30 7 * * *', function() { msg = {}})
 
 //für ein Update ab hier kopieren 1234567
-const version = 0.21
+const version = 0.22
 var oldVersion = 0;
+var firstRun = true;
 // Den unter States befindlichen Punkten wird die functions enum zugewiesen wenn setFunctionToAllStates true ist
 // states die nicht mit einem enum versehen werden können und auch überwachte werden sollen
 const watchingDevice = {
@@ -52,7 +53,7 @@ const stateDef = {
         "dp": {"type": "string", "def":"", "desc": "ursprüngliche ID"},
         "art": {"type": "number", "def":0, "desc": "ts, lc, true, false Worauf geprüft werden soll", states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummer > testwert = offline"}},
         "activ": {"type": "boolean", "def":true, "desc": "An/Auschalten"},
-        "zeit": {"type": "string", "def":"30m", "desc": "d,h,m"},
+        "zeit": {"type": "string", "def":"30m", "desc": "d,h,m bis art einen Benachrichtigung auslöst"},
         "testwert": {"type": "number", "def":0, "desc": "zu den Arten größer und kleiner der Testwert"},
         "ts_langzeit_prüfung": {"type": "boolean", "def":true, "desc": "Langzeitprüfung aktiv"},
         "langzeit": {"type": "string", "def":"14d", "desc": "Wie zeit, jedoch wird der Zeitstempel(ts) einmal die Wochhe geprüft, ob dieser aktualisiert wurde"},
@@ -92,6 +93,11 @@ const stateDef = {
     }
 }
 
+const pathToState = path + '.gerät'
+const pathToAdapter = path + '.adapter'
+const pathToScript = path + '.script'
+const paths = [pathToAdapter,pathToState,pathToScript]
+
 var msg = {}
 
 async function init() {
@@ -111,15 +117,12 @@ async function init() {
     if (!existsObject(path+'.version')) await createStateAsync(path+'.version', 0, {"type":'number', "name":'Skriptversionsnummer', "read":true, "write":false}, )
     if (!existsObject(pathToState)) await createFolderAsync(pathToState, 'Geräteüberwachung')
     if (!existsObject(pathToAdapter)) await createFolderAsync(pathToAdapter, 'Adapterüberwachung')
+    if (!existsObject(pathToScript)) await createFolderAsync(pathToScript, 'Skriptüberwachung')
     setState(path+'.version', version, true)
     work()
     return Promise.resolve(true);
 }
 
-const pathToState = path + '.gerät'
-const pathToAdapter = path + '.adapter'
-const pathToScript = path + '.script'
-const paths = [pathToAdapter,pathToState,pathToScript]
 //system.adapter.admin.0.alive
 // Nachrichten werden nur einmal am Tag versendet, rücksetzen um 7:30 
 
@@ -128,7 +131,7 @@ setInterval(work, 900000)
 
 schedule('15 10 * * 7', function(){work(true)})
 
-async function work(long = false){
+async function work(long = false){ 
     let devs = Array.prototype.slice.apply($('state(functions='+enumFunctions+')'))
     for (const sel of watchingDevice.adapter ) devs = Array.prototype.slice.apply($('state(id='+sel+')')).concat(devs)
     for (const sel of watchingDevice.scripts ) devs = Array.prototype.slice.apply($('state(id='+sel+')')).concat(devs)
@@ -136,9 +139,11 @@ async function work(long = false){
     for (let a=0; a<devs.length; a++ ) {
         try {
             let dp = devs[a]
-            let lc = getState(dp).lc // ts oder lc
+            if (!existsObject(dp)) continue
             let v = {}
             v = await readDP(dp)
+            let lc = getState(v.dp).lc // ts oder lc
+            let ts =  getState(v.dp).ts
             let cts = v.zeit
             if (long && !v["ts_langzeit_prüfung"]) continue
             if (!v.activ) continue
@@ -149,14 +154,14 @@ async function work(long = false){
                 lc = getState(v.dp).ts
                 alarm = lc + cts < now            
                 break;
-                case 1:
-                alarm = getState(v.dp).lc + cts < now
-                break;
                 case 2:
                 case 3:
                 alarm = getState(v.dp).val 
                 if (v.art == 3) alarm = !alarm
                 if (long && !alarm) alarm = !getState(v.dp).ts + cts < now
+                if (!alarm || long) break;
+                case 1:
+                alarm = ts + cts < now
                 break;
                 case 4:
                 alarm = getState(v.dp).val < v.testwert 
@@ -164,7 +169,7 @@ async function work(long = false){
                 case 5:
                 alarm = getState(v.dp).val > v.testwert
                 break;
-            } 
+            }
             /*if (dp.indexOf('shelly.0.shellyplus1pm#48551999a770#1') != -1) {
                 log(dp)
                 log(v)
@@ -240,6 +245,7 @@ async function work(long = false){
         sendTo('telegram', {user: user, text: message });         
     }
     oldVersion = version
+    firstRun = long
     return Promise.resolve(true);
 }
 
@@ -272,7 +278,12 @@ async function readDP(dp) {
     }
     let id = dp
     let tPath = ''
-    if (devTyp == 'adapter') tPath = pathToAdapter +'.'+ id
+    if (devTyp == 'adapter') {
+        let tid = id;
+        if (tid.startsWith('system.adapter.')) tid = tid.replace('system.adapter.','')
+        tPath = pathToAdapter +'.'+ tid
+        
+    }
     else if (devTyp == 'script') {
         id = dp.split('.').slice(3).join('.')
         tPath = pathToScript +'.'+ id
@@ -287,6 +298,14 @@ async function readDP(dp) {
                 if (!getState(tPath +'.'+ p).ack) setState(tPath +'.'+ p, result[p], true)
             }
         }
+        if (firstRun){          
+            if (devTyp === 'state') {
+                let nid = id.split('.').slice(0,3).join('.');
+                let name = ''
+                if (existsObject(nid)) name = getObject(nid).common.name
+                if (name) extendObject(tPath.split('.').slice(0,-1).join('.'), {common:{"name": name}})
+            }
+        }
         if (oldVersion < 0.21 && existsObject(tPath+'art')) deleteObject(tPath+'art')
         if (oldVersion < 0.21) extendObject(tPath+'.'+"art", {common:{states:{"0": "Zeitstempel", "1": "Letzte Änderung", "2": "true = offline", "3":"false = offline", "4":"nummer < testwert = offline", "5":"nummer > testwert = offline"}}})
         result.id = tPath
@@ -295,6 +314,7 @@ async function readDP(dp) {
         if (devTyp !== 'script') {
             if (existsObject(dp.split('.').slice(0,-1).join('.'))) name = getObject(dp.split('.').slice(0,-1).join('.')).common.name
             else name = getObject(dp).common.name
+        
         } else {
             name = id
         }
@@ -357,7 +377,7 @@ async function readDP(dp) {
 async function addToEnum(enumName, newStateId) {
     if (!await existsObjectAsync(newStateId)) {
         log(newStateId + ' not exist!', 'warn')
-        return
+        return Promise.resolve(false);
     }
     let myEnum = await getObjectAsync(enumName);
     if (myEnum) {
