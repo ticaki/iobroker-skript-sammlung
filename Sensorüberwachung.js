@@ -3,6 +3,9 @@
 
 /* Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram */
 /* Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. */
+/* v0.2.2 system.adapter.* wird nun direkt unter adapter einsortiert
+/* Benennung des Datenzweigs angepasst.
+/* test auf true/false/größer/kleiner benutzt Zeit
 /* v0.2.1 Mit Versionsverwaltung, Fehler der vorversion im Datenbaum werden behoben */
 
 const setFunctionToAllStates = false
@@ -19,7 +22,7 @@ const options = "hh:mm / DD.MM"
 const user = 'Tim'
 
 // Hier wird der Meldungsspeicher zurück gesetzt
-schedule('30 7 * * *', function() { msg = {}})
+schedule('30 8 * * *', function() { msg = {}})
 
 //für ein Update ab hier kopieren 1234567
 const version = 0.22
@@ -119,7 +122,7 @@ async function init() {
     if (!existsObject(pathToAdapter)) await createFolderAsync(pathToAdapter, 'Adapterüberwachung')
     if (!existsObject(pathToScript)) await createFolderAsync(pathToScript, 'Skriptüberwachung')
     setState(path+'.version', version, true)
-    work()
+    //work()
     return Promise.resolve(true);
 }
 
@@ -150,43 +153,37 @@ async function work(long = false){
             if (long) cts = v.langzeit
             let alarm = false;
             switch (v.art) {//"ts, lc, true, false Worauf geprüft werden soll"},
-                case 0:
-                lc = getState(v.dp).ts
-                alarm = lc + cts < now            
+                case 0:// test auf ts
+                alarm = ts + cts < now            
                 break;
-                case 2:
+                case 2:// test auf true oder false
                 case 3:
                 alarm = getState(v.dp).val 
                 if (v.art == 3) alarm = !alarm
-                if (long && !alarm) alarm = !getState(v.dp).ts + cts < now
+                alarm = alarm && (lc + cts < now)
+                if (long && !alarm) alarm = !(ts + cts < now)
                 if (!alarm || long) break;
-                case 1:
-                alarm = ts + cts < now
+                case 1://Test auf lc
+                alarm = lc + cts < now
                 break;
                 case 4:
-                alarm = getState(v.dp).val < v.testwert 
+                alarm = getState(v.dp).val < v.testwert
+                alarm = alarm && (lc + cts < now) 
                 break;
                 case 5:
                 alarm = getState(v.dp).val > v.testwert
+                alarm = alarm && (lc + cts < now)
                 break;
             }
-            /*if (dp.indexOf('shelly.0.shellyplus1pm#48551999a770#1') != -1) {
-                log(dp)
-                log(v)
-                log(cts/60000/60)
-                log('jetzt:'+now/60000/60)
-                log(lc/60000/60)
-                log((lc+cts)/60000/60)
-                log(lc + cts < now)
-            }*/
+         
             if (alarm){
                 switch(v.devTyp) {
                     case 'adapter':
                     case 'script':
-                    log(dp + ' deaktiviert', 'warn')
+                    log(dp + ' ist deaktiviert!', 'warn')
                     break
                     case 'state':
-                    log(dp + ' offline', 'warn')
+                    log(dp + ' ist offline!', 'warn')
                     break
                 }
             }
