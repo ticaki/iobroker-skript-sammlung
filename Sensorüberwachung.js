@@ -3,10 +3,11 @@
 
 /* Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram */
 /* Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. */
+/* v0.2.3 Logausgabe beinhaltet den vollen Pfad zum Konfigurationspunkt, nur cp in die Objektszeile des Objektbrowsers und man findet ihn
 /* v0.2.2 system.adapter.* wird nun direkt unter adapter einsortiert
 /* Benennung des Datenzweigs angepasst.
-/* test auf true/false/größer/kleiner benutzt Zeit
-/* v0.2.1 Mit Versionsverwaltung, Fehler der vorversion im Datenbaum werden behoben */
+/* test auf true/false/größer/kleiner benutzt Zeit und testet last change
+/* v0.2.1 Mit Versionsverwaltung, Fehler der Vorversion im Datenbaum werden behoben */
 
 const setFunctionToAllStates = false
 
@@ -25,7 +26,7 @@ const user = 'Tim'
 schedule('30 8 * * *', function() { msg = {}})
 
 //für ein Update ab hier kopieren 1234567
-const version = 0.22
+const version = 0.23
 var oldVersion = 0;
 var firstRun = true;
 // Den unter States befindlichen Punkten wird die functions enum zugewiesen wenn setFunctionToAllStates true ist
@@ -126,7 +127,6 @@ async function init() {
     return Promise.resolve(true);
 }
 
-//system.adapter.admin.0.alive
 // Nachrichten werden nur einmal am Tag versendet, rücksetzen um 7:30 
 
 
@@ -186,6 +186,7 @@ async function work(long = false){
                     log(dp + ' ist offline!', 'warn')
                     break
                 }
+                log(v.id + ' Konfigurationspunkt', 'warn')
             }
             if (alarm) {
                 if(msg[dp] === undefined) msg[dp] = {} 
