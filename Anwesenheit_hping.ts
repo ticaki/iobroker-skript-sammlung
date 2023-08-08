@@ -1,16 +1,21 @@
+// Anwesenheitserkennung
+
+// diesen Befehle habe ich genutzt um allen die benutzung von hping3 zu erlauben (debian bookworm) sudo setcap cap_net_raw+ep /usr/sbin/hping3
+
 
 // logausgabe aktivieren
 const useLog:boolean = true
 
 const int_face:string = 'ens18' // auf der Konsole ip addr , das ist die Bezeichnung des interfaces - oder unter /etc/network/interfaces gucken
 
+const path:string = /*''*/ '0_userdata.0.Sensoren.Anwesenheit_hping' + '.' // der Punkt ist wichtig :)
 //definition der Geräte
 let devices: any[] = [ 
     {
         name: 'Tims iPhone', // name des Geräts
         ip: '192.168.178.109',
         mac: '',
-        dp:''
+        dp: path + 'tim'
         //state wird erstellt
     }/*,{
         name: 'Nochjemand', 
@@ -21,10 +26,10 @@ let devices: any[] = [
 
 ]
 // Datenpunkt des "irgendwer ist zurhause" Datenpunkts
-const anyone_dp:string = ''//'0_userdata.0.Sensoren.Anwesenheit.Anyone'
+const anyone_dp:string = /*''*/ path + 'anyone'
 
 // nix mehr ändern
-let anyone_status:boolean = anyone_dp ? getState(anyone_dp).val : false
+let anyone_status:boolean = anyone_dp && existsState(anyone_dp) ? getState(anyone_dp).val : false
 let ip:string = ''
 let counter:number = -1
 let stop1:boolean = false
@@ -33,14 +38,16 @@ let stop1:boolean = false
 schedule('*/30 * * * * *', start)
 
 
-function start() {
+async function start() {
     if (++counter >= devices.length){
         // alle geprüft Anyone setzen und alles zurücksetzen
         if (anyone_dp) { 
             let t:boolean = false
             for (let a of devices) if (a.state !== undefined) t = t || a.state
             if (anyone_status != t) {
-                setState(anyone_dp, t, true)
+                if (!existsState(anyone_dp)) {
+                    await createCustomState(anyone_dp, {"name":"irgendjemand", "type":"boolean", "def":t, "read":true, "write": false})
+                } else setState(anyone_dp, t, true)
                 if (useLog) log('Anyone wurde auf ' + (t ? 'wahr' : 'falsch') + ' gesetzt.')
             }
             anyone_status = t
@@ -58,13 +65,13 @@ function callback2(result, error) {
 function callback3(result, error) {
     exec('arp -an '+ip+' | awk '+ip+' | grep "..:..:..:..:..:.."', callback4)
 }
-function callback4(error, result) {
+async function callback4(error, result) {
     let presence:boolean = false
     let ack:boolean = true
     if (error) {
         if (useLog) log(devices[counter].name + ' nicht erreichbar')
     } else {
-        if (devices[counter].mac && !result.lastIndexOf(devices[counter].mac) ) {
+        if (devices[counter].mac && result.lastIndexOf(devices[counter].mac == -1) ) {
             log(devices[counter].name + ' unter falscher mac Adresse gefunden!', 'warn')
             ack = false
         }
@@ -74,7 +81,12 @@ function callback4(error, result) {
     }
     if (!devices[counter].hasOwnProperty('state'))devices[counter]["state"] = !presence
     if (devices[counter]["state"] != presence) {
-        if (devices[counter]["dp"]) setState(devices[counter]["dp"], presence ,ack)
+        if (devices[counter]["dp"]) {
+            if (!existsState(devices[counter]["dp"])) {
+                await createCustomState(devices[counter]["dp"],{"name": devices[counter].name, "type":"boolean", "def":presence, "read":true, "write": false})
+            }
+            setState(devices[counter]["dp"], presence ,ack)
+        }
     } 
     devices[counter]["state"] = presence
     start()
@@ -84,3 +96,10 @@ onStop(function (callback) {
     stop1 = true;
     callback();
 }, 2000 /*ms*/);
+
+async function createCustomState(id:string, opt:any) {
+    if (!(id.startsWith('alias.0') || id.startsWith('0_userdata.0') || id.startsWith('mqtt'))) {
+        throw new Error('Fehler in _createObject Parameter 1: ' + id.split('.').slice(0,2).join('.') + ' nicht erlaubt')
+    } 
+    await createStateAsync(id, opt)
+}
