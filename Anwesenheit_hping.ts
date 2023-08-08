@@ -1,6 +1,7 @@
 // Anwesenheitserkennung
 
 // diesen Befehle habe ich genutzt um allen die benutzung von hping3 zu erlauben (debian bookworm) sudo setcap cap_net_raw+ep /usr/sbin/hping3
+// und dann noch einen Link nach bin ln -s /usr/sbin/hping3 /usr/bin/
 
 
 // logausgabe aktivieren
@@ -26,7 +27,7 @@ let devices: any[] = [
 
 ]
 // Datenpunkt des "irgendwer ist zurhause" Datenpunkts
-const anyone_dp:string = /*''*/ path + 'anyone'
+const anyone_dp:string = '' //path + 'h.anyone'
 
 // nix mehr ändern
 let anyone_status:boolean = anyone_dp && existsState(anyone_dp) ? getState(anyone_dp).val : false
@@ -69,13 +70,11 @@ function callback3(result, error) {
 }
 async function callback4(error, result) {
     let presence:boolean = false
-    let ack:boolean = true
     if (error) {
         if (useLog) log(devices[counter].name + ' nicht erreichbar')
     } else {
-        if (devices[counter].mac && result.lastIndexOf(devices[counter].mac == -1) ) {
+        if (devices[counter].mac && result.lastIndexOf(devices[counter].mac.toLowerCase()) == -1 ) {
             log(devices[counter].name + ' unter falscher mac Adresse gefunden!', 'warn')
-            ack = false
         }
         if (useLog) log(devices[counter].name + ' erreichbar')
         presence = true
@@ -88,7 +87,7 @@ async function callback4(error, result) {
                 if (!existsState(devices[counter]["dp"])) {
                     await createCustomState(devices[counter]["dp"],{"name": devices[counter].name, "type":"boolean", "def":presence, "read":true, "write": false})
                 }
-                setState(devices[counter]["dp"], presence ,ack)
+                setState(devices[counter]["dp"], presence ,true)
             }
         } catch(e) {log(e)}
     } 
