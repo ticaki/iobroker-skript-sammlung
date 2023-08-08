@@ -42,15 +42,17 @@ async function start() {
     if (++counter >= devices.length){
         // alle geprüft Anyone setzen und alles zurücksetzen
         if (anyone_dp) { 
-            let t:boolean = false
-            for (let a of devices) if (a.state !== undefined) t = t || a.state
-            if (anyone_status != t) {
-                if (!existsState(anyone_dp)) {
-                    await createCustomState(anyone_dp, {"name":"irgendjemand", "type":"boolean", "def":t, "read":true, "write": false})
-                } else setState(anyone_dp, t, true)
-                if (useLog) log('Anyone wurde auf ' + (t ? 'wahr' : 'falsch') + ' gesetzt.')
-            }
-            anyone_status = t
+            try {
+                let t:boolean = false
+                for (let a of devices) if (a.state !== undefined) t = t || a.state
+                if (anyone_status != t) {
+                    if (!existsState(anyone_dp)) {
+                        await createCustomState(anyone_dp, {"name":"irgendjemand", "type":"boolean", "def":t, "read":true, "write": false})
+                    } else setState(anyone_dp, t, true)
+                    if (useLog) log('Anyone wurde auf ' + (t ? 'wahr' : 'falsch') + ' gesetzt.')
+                }
+                anyone_status = t
+            } catch(e) {log(e)}
         }
         counter = -1
         return
@@ -81,12 +83,14 @@ async function callback4(error, result) {
     }
     if (!devices[counter].hasOwnProperty('state'))devices[counter]["state"] = !presence
     if (devices[counter]["state"] != presence) {
-        if (devices[counter]["dp"]) {
-            if (!existsState(devices[counter]["dp"])) {
-                await createCustomState(devices[counter]["dp"],{"name": devices[counter].name, "type":"boolean", "def":presence, "read":true, "write": false})
+        try {
+            if (devices[counter]["dp"]) {
+                if (!existsState(devices[counter]["dp"])) {
+                    await createCustomState(devices[counter]["dp"],{"name": devices[counter].name, "type":"boolean", "def":presence, "read":true, "write": false})
+                }
+                setState(devices[counter]["dp"], presence ,ack)
             }
-            setState(devices[counter]["dp"], presence ,ack)
-        }
+        } catch(e) {log(e)}
     } 
     devices[counter]["state"] = presence
     start()
