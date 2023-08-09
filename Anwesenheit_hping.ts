@@ -2,7 +2,7 @@
 
 // diesen Befehle habe ich genutzt um allen die benutzung von hping3 zu erlauben (debian bookworm) sudo setcap cap_net_raw+ep /usr/sbin/hping3
 // und dann noch einen Link nach bin ln -s /usr/sbin/hping3 /usr/bin/
-
+export {}
 
 // logausgabe aktivieren
 const useLog:boolean = true
@@ -53,7 +53,7 @@ async function start() {
                     if (useLog) log('Anyone wurde auf ' + (t ? 'wahr' : 'falsch') + ' gesetzt.')
                 }
                 anyone_status = t
-            } catch(e) {log(e)}
+            } catch(e:any) {log(e)}
         }
         counter = -1
         return
@@ -73,7 +73,7 @@ async function callback4(error, result) {
     if (error) {
         if (useLog) log(devices[counter].name + ' nicht erreichbar')
     } else {
-        if (devices[counter].mac && result.lastIndexOf(devices[counter].mac.toLowerCase()) == -1 ) {
+        if (devices[counter].mac && result.lastIndexOf(devices[counter].mac.toLowerCase()) == -1) {
             log(devices[counter].name + ' unter falscher mac Adresse gefunden!', 'warn')
         }
         if (useLog) log(devices[counter].name + ' erreichbar')
@@ -89,13 +89,13 @@ async function callback4(error, result) {
                 }
                 setState(devices[counter]["dp"], presence ,true)
             }
-        } catch(e) {log(e)}
+        } catch(e:any) {log(e)}
     } 
     devices[counter]["state"] = presence
     start()
 }
 
-onStop(function (callback) {
+onStop(function (callback:any) {
     stop1 = true;
     callback();
 }, 2000 /*ms*/);
