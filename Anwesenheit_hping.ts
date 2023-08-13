@@ -7,18 +7,20 @@ export {}
 // logausgabe aktivieren
 const useLog:boolean = true
 
+// das hier ist etwas schwieriger, wenn du nicht weiß was hier rein soll einfach im Forum oder auf Github nachfragen.
 const int_face:string = 'ens18' // auf der Konsole ip addr , das ist die Bezeichnung des interfaces - oder unter /etc/network/interfaces gucken
 
+// das in den '' ist der Pfad an dem die Datenpunkte erstellt werden soll. Der PUNKT ist wichtig
 const path:string = /*''*/ '0_userdata.0.Sensoren.Anwesenheit_hping' + '.' // der Punkt ist wichtig :)
+
 //definition der Geräte
 let devices: any[] = [ 
     {
-        name: 'Tims iPhone', // name des Geräts
-        ip: '192.168.178.109',
-        mac: '',
-        dp: path + 'tim'
-        //state wird erstellt
-    }/*,{
+        name: 'Tims iPhone', // Name des Geräts - das steht nachher im Namensfeld vom Datenpunkt
+        ip: '192.168.178.109', // die ip des Gerätes
+        mac: '', // optional - MAC Adresse, damit kann erkannt werden wenn das GErät das überwacht werden soll nicht die vorgegebene IP hat.
+        dp: path + 'tim' // das ist der letzte TEil des Datenpunktes hier wäre das: 0_userdata.0.Sensoren.Anwesenheit_hping.tim
+    }/*,{ // das ist ein Beipiel entferne das /* und das umgedrehte um zu aktivieren kann beliebig oft kopiert werden.
         name: 'Nochjemand', 
         ip: '192.168.178.11',
         mac: '',
@@ -26,8 +28,8 @@ let devices: any[] = [
     }*/
 
 ]
-// Datenpunkt des "irgendwer ist zurhause" Datenpunkts
-const anyone_dp:string = '' //path + 'h.anyone'
+// Datenpunkt des "irgendwer ist zurhause" Datenpunkts entferne die '' // zum aktivieren
+const anyone_dp:string = '' //path + '.anyone'
 
 // nix mehr ändern
 let anyone_status:boolean = anyone_dp && existsState(anyone_dp) ? getState(anyone_dp).val : false
