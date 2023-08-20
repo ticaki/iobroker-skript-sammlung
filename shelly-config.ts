@@ -1,10 +1,10 @@
 const onlyLog:boolean =  true
 
 let options = {
-    "auth": { // den Zweig löschen wenn keine http password vergeben
+    /*"auth": { // den Zweig löschen wenn keine http password vergeben
         "username": "",
         "password": ""
-    },
+    },*/
     "settings": {
         "mqtt_enable": true,
         //"mqtt_server": "iobroker.kiemen.com:1882",
@@ -27,7 +27,7 @@ const axios = require('axios')
 
 async function setData() {
         let opt:object = {}
-        if (options.auth !== undefined) opt["auth"] = options.auth
+        if (options["auth"] !== undefined)  opt["auth"] = options["auth"]
         let appendix = ''
         for (let key in options.settings) {
             if (!(options && options.settings && options.settings[key] !== undefined)) return
