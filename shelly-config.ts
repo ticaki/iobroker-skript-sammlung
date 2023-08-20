@@ -26,7 +26,7 @@ let dev = $('state[state.id=shelly.*.hostname]')
 const axios = require('axios')
 
 async function setData() {
-let opt:object = {}
+        let opt:object = {}
         if (options.auth !== undefined) opt["auth"] = options.auth
         let appendix = ''
         for (let key in options.settings) {
@@ -44,6 +44,7 @@ let opt:object = {}
         }
         try {
             const result = await axios.get(url, opt);
+            await axios.get('http://'+ip+'/reboot', opt);
             log (JSON.stringify(result.data))
         } catch (error) {log(error)}
         return Promise.resolve(null)
