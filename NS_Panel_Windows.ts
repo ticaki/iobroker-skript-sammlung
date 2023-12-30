@@ -61,8 +61,8 @@
             for (const a in allWindows) {
                 unsubscribe(allWindows[a]);
             }
-            let changed = false;
-            for (const a in allWindows) {
+            let changed = true;
+            /*for (const a in allWindows) {
                 let hit = false;
                 for (const b in windows) {
                     if (windows[b] == allWindows[a]) hit = true;
@@ -71,7 +71,7 @@
                     unsubscribe(allWindows[a]);
                     changed = true;
                 }
-            }
+            }*/
             if (changed) {
                 if (await existsObjectAsync(clearDP(`${Username_Path}.Fenster.haus`))) await deleteObjectAsync(clearDP(`${Username_Path}.Fenster.haus`), true );
                 await extendObjectAsync(clearDP(`${Username_Path}.Fenster.haus`),{ type: 'channel',common: { name: {de:"Alle Fenster"}, role: 'window' },native: {} });
