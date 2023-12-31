@@ -1,14 +1,16 @@
 //bitte das folgende Skript noch darüber kopieren oder gleich als globales Skript anlegen
 //globaleCreateFunktionen.js
 
-/* Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram */
-/* Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. */
-/* v0.2.3 Logausgabe beinhaltet den vollen Pfad zum Konfigurationspunkt, nur cp in die Objektszeile des Objektbrowsers und man findet ihn
-/* v0.2.2 system.adapter.* wird nun direkt unter adapter einsortiert
-/* Benennung des Datenzweigs angepasst.
-/* test auf true/false/größer/kleiner benutzt Zeit und testet last change
-/* v0.2.1 Mit Versionsverwaltung, Fehler der Vorversion im Datenbaum werden behoben */
-
+/**
+ * Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram 
+ * Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. 
+ * v0.3.0 Skripte werden auf Existenz überprüft und in aderen Instanzen gesucht bevor eine Warnung raus geht.
+ * v0.2.3 Logausgabe beinhaltet den vollen Pfad zum Konfigurationspunkt, nur cp in die Objektszeile des Objektbrowsers und man findet ihn
+ * v0.2.2 system.adapter.* wird nun direkt unter adapter einsortiert
+ * Benennung des Datenzweigs angepasst.
+ * test auf true/false/größer/kleiner benutzt Zeit und testet last change
+ * v0.2.1 Mit Versionsverwaltung, Fehler der Vorversion im Datenbaum werden behoben 
+*/
 const setFunctionToAllStates = false
 
 const enumFunctions = 'online' // die Funktion die in Aufzählung für dieses Skript zur Verfügung gestellt wird, muß den überwachten States zu geordnet werden
@@ -26,7 +28,7 @@ const user = 'Tim'
 schedule('30 8 * * *', function() { msg = {}})
 
 //für ein Update ab hier kopieren 1234567
-const version = 0.23
+const version = 0.30
 var oldVersion = 0;
 var firstRun = true;
 // Den unter States befindlichen Punkten wird die functions enum zugewiesen wenn setFunctionToAllStates true ist
@@ -41,12 +43,14 @@ const watchingDevice = {
         'sonoff.*.Uptime',
         'shelly.*.uptime',
         'nuki.*.timestamp',
-        'zigbee2mqtt.*.last_seen'
+        'zigbee2mqtt.*.last_seen',
+        'esphome.*.info._online'
     ],
     scripts: [
         // hier jede Jasacriptinstanz eintragen, dieses Skript muß alleine auf einer eigenen laufen
         // wenn die Instanz anhält läuft auch dieses Skript nicht, damit ist eine überprüfung der eigenen Instanz sinnlos
-        'javascript.0.scriptEnabled.*' 
+        'javascript.0.scriptEnabled.*',
+        'javascript.2.scriptEnabled.*' 
     ]
 }
 
@@ -123,7 +127,7 @@ async function init() {
     if (!existsObject(pathToAdapter)) await createFolderAsync(pathToAdapter, 'Adapterüberwachung')
     if (!existsObject(pathToScript)) await createFolderAsync(pathToScript, 'Skriptüberwachung')
     setState(path+'.version', version, true)
-    //work()
+    work();
     return Promise.resolve(true);
 }
 
@@ -145,6 +149,11 @@ async function work(long = false){
             if (!existsObject(dp)) continue
             let v = {}
             v = await readDP(dp)
+            if (v == null) continue;
+            if (!existsState(v.dp))  {
+                await deleteObjectAsync(v.id, true);
+                continue;
+            }
             let lc = getState(v.dp).lc // ts oder lc
             let ts =  getState(v.dp).ts
             let cts = v.zeit
@@ -207,7 +216,8 @@ async function work(long = false){
             } else {
                 delete msg[dp]
             }
-        } catch(e) {log(e);log(2)}
+        }
+        catch(e) {log(e);log('work()')}
     }
     let messageObj = {}
     let message = ''
@@ -279,12 +289,36 @@ async function readDP(dp) {
     if (devTyp == 'adapter') {
         let tid = id;
         if (tid.startsWith('system.adapter.')) tid = tid.replace('system.adapter.','')
-        tPath = pathToAdapter +'.'+ tid
-        
+        tPath = pathToAdapter +'.'+ tid        
     }
     else if (devTyp == 'script') {
+        // Überprüfe ob das Skript überhaupt noch existiert
+        if (existsObject(dp)) {
+            const obj = await getObjectAsync(dp);
+            if (obj) {
+                const script = obj.native.script;
+                if (! existsObject(script)) {
+                    return null;
+                }
+            }
+        }
+
+        //überprüfe ob das Skript auf einer anderen Instanz läuft
+        let dpArray = dp.split('.');
+        dpArray[1] = '*';
+        dpArray = $(`state(id=${dpArray.join('.')})`);
+        for (const d of dpArray) {
+            if (getState(d).val) {
+                dp = d;
+                break;
+            }
+        }
         id = dp.split('.').slice(3).join('.')
-        tPath = pathToScript +'.'+ id
+        
+        tPath = pathToScript +'.'+ id;
+        
+        // schreibe den neuen DP wenn er sicch geändert hat.
+        if (await existsObjectAsync(`${tPath}.dp`) && (await getStateAsync(`${tPath}.dp`)).val != dp) setStateAsync(`${tPath}.dp`, dp, true )
     }
     else tPath = pathToState +'.'+ id
     var result = {"devTyp": devTyp} 

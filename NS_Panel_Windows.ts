@@ -47,7 +47,6 @@ const def = {
             id: 'ACTUAL',
             type: 'boolean',
             role: 'sensor.window',
-            read: 'val'
         },
     }
 
