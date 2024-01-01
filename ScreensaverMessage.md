@@ -26,7 +26,7 @@ Nachrichten werden gesendet in dem ein Text oder Json in die Datenpunkt die auf 
 Der Datenpunkt der mit `global` beginnt, schreibt die Eingabe auf alle Datenpunkte die mit `panel` beginnen. Einfacher gesagt - global schreibt die Nachricht auf alle Panels die in `nspnalePath` stehen.
 
 #### TEXT: 
-Kann nach dem Muster `headline#text` verwendet werden. z.B. `nur headline`, `#nur text` oder `headline#text`. Nur ein `#` möglich, bei mehr in der Zeichenkette sind, wird eine Warnung ins Log geschrieben, so das nicht wichtige Information unbemerkt verworfen werden.
+Kann nach dem Muster `headline#text` verwendet werden. z.B. `nur headline`, `#nur text` oder `headline#text`. Nur ein `#` möglich, wenn mehr als eins in der Zeichenkette sind, wird eine Warnung ins Log geschrieben, so das wichtige Information nicht unbemerkt verworfen werden.
 
 #### JSON: 
 Das Json hat folgendes Format: {id: string, headline: string, msg: string, clear: number, change: number}
@@ -47,6 +47,6 @@ Wenn eine Nachricht die Eigenschaft `id` hat, wird sie solange angezeigt bis ein
 
 z.B. 
 - Nachricht: `{id: 'Haustür steht offen', headline: 'Haustür', msg: 'Ist offen!'}` 
-- Löschen: {id: 'Haustür steht offen'} 
+- Löschen: `{id: 'Haustür steht offen'}` 
 
 
