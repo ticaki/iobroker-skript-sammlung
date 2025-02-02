@@ -4,6 +4,7 @@
 /**
  * Schreibt "Warnungen" ins Log und versendet 1 mal pro Tag/Start Meldungen per Telegram 
  * Für colle Funktionalität muß dieses auf einer eigenen Javascriptinstanz alleine laufen. 
+ * v0.3.0 scripte in denen im Datenpfad ein Tools oder Test vorkommt, werden ignoriert
  * v0.3.0 Skripte werden auf Existenz überprüft und in aderen Instanzen gesucht bevor eine Warnung raus geht.
  * v0.2.3 Logausgabe beinhaltet den vollen Pfad zum Konfigurationspunkt, nur cp in die Objektszeile des Objektbrowsers und man findet ihn
  * v0.2.2 system.adapter.* wird nun direkt unter adapter einsortiert
@@ -11,7 +12,7 @@
  * test auf true/false/größer/kleiner benutzt Zeit und testet last change
  * v0.2.1 Mit Versionsverwaltung, Fehler der Vorversion im Datenbaum werden behoben 
 */
-const setFunctionToAllStates = false
+const setFunctionToAllStates = true
 
 const enumFunctions = 'online' // die Funktion die in Aufzählung für dieses Skript zur Verfügung gestellt wird, muß den überwachten States zu geordnet werden
 
@@ -28,7 +29,7 @@ const user = 'Tim'
 schedule('30 8 * * *', function() { msg = {}})
 
 //für ein Update ab hier kopieren 1234567
-const version = 0.30
+const version = 0.31
 var oldVersion = 0;
 var firstRun = true;
 // Den unter States befindlichen Punkten wird die functions enum zugewiesen wenn setFunctionToAllStates true ist
@@ -127,8 +128,6 @@ async function init() {
     if (!existsObject(pathToAdapter)) await createFolderAsync(pathToAdapter, 'Adapterüberwachung')
     if (!existsObject(pathToScript)) await createFolderAsync(pathToScript, 'Skriptüberwachung')
     setState(path+'.version', version, true)
-    work();
-    return Promise.resolve(true);
 }
 
 // Nachrichten werden nur einmal am Tag versendet, rücksetzen um 7:30 
@@ -139,16 +138,16 @@ setInterval(work, 900000)
 schedule('15 10 * * 7', function(){work(true)})
 
 async function work(long = false){ 
-    let devs = Array.prototype.slice.apply($('state(functions='+enumFunctions+')'))
-    for (const sel of watchingDevice.adapter ) devs = Array.prototype.slice.apply($('state(id='+sel+')')).concat(devs)
-    for (const sel of watchingDevice.scripts ) devs = Array.prototype.slice.apply($('state(id='+sel+')')).concat(devs)
+    let devs = $('state(functions='+enumFunctions+')').toArray()
+    for (const sel of watchingDevice.adapter ) devs = devs.concat($('state(id='+sel+')').toArray())
+    for (const sel of watchingDevice.scripts ) devs = devs.concat($('state(id='+sel+')').toArray())
     const now = new Date().getTime()
     for (let a=0; a<devs.length; a++ ) {
         try {
             let dp = devs[a]
             if (!existsObject(dp)) continue
-            let v = {}
-            v = await readDP(dp)
+            
+            let v:dataset = await readDP(dp)
             if (v == null) continue;
             if (!existsState(v.dp))  {
                 await deleteObjectAsync(v.id, true);
@@ -236,14 +235,10 @@ async function work(long = false){
     let tempdevs = $('state(id='+path+'.*.dp)')
     for (let a=0;a<tempdevs.length;a++) {
         let dp = getState(tempdevs[a]).val
-        let index = -1
-        for (let b=0;b<devs.length;b++) {
-            if (devs[b] == dp) {
-                index = b
-            }
-        }
+        let index = devs.findIndex((a) => a == dp)
         if (index == -1) {
-            deleteDP(dp)
+            dp = tempdevs[a].split('.').slice(0,-1).join('.');
+            deleteDP(getState(`${dp}.id`).val)
         }
     }
 
@@ -257,20 +252,17 @@ async function work(long = false){
     return Promise.resolve(true);
 }
 
-async function deleteDP(dp) {
-    let id = dp.split('.').join('-')
-    for (const p of paths) {
-        let tPath = p +'.'+ id
-        if (existsObject(tPath)) {
-            for (let p in stateDef["_default"]) {
-                deleteState(tPath +'.'+ p)
-            }
-            deleteState(tPath )
+function deleteDP(dp) {
+    if (existsObject(dp)) {           
+        for (let p in stateDef["_default"]) {
+            deleteState(dp +'.'+ p)
         }
+        deleteObject(dp)
     }
+    
 }
 
-async function readDP(dp) {
+async function readDP(dp): Promise<dataset> {
     let firstTag, lastTag , devTyp = 'state'
     for (const d in stateDef.firstTag ) {
         if (dp.startsWith(d)) {
@@ -313,15 +305,18 @@ async function readDP(dp) {
                 break;
             }
         }
+        if (dp.includes('Test') || dp.includes('Tools')) return null;
         id = dp.split('.').slice(3).join('.')
         
         tPath = pathToScript +'.'+ id;
         
-        // schreibe den neuen DP wenn er sicch geändert hat.
+        // schreibe den neuen DP wenn er sich geändert hat.
         if (await existsObjectAsync(`${tPath}.dp`) && (await getStateAsync(`${tPath}.dp`)).val != dp) setStateAsync(`${tPath}.dp`, dp, true )
     }
-    else tPath = pathToState +'.'+ id
-    var result = {"devTyp": devTyp} 
+    else if (devTyp == 'state') tPath = pathToState +'.'+ id
+    else throw new Error('unknown devtyp');
+
+    var result: Partial<datasetIncoming> = {devTyp: devTyp} 
     if (existsObject(tPath)) {
         for (let p in stateDef["_default"]) {
             if (!existsState(tPath +'.'+ p)) result = await _createSingleState(tPath, p, result)
@@ -357,7 +352,7 @@ async function readDP(dp) {
             result = await _createSingleState(tPath, p, result)
         }
     }
-    if (result.zeit !== undefined) {
+    if (result.zeit !== undefined && typeof result.zeit == 'string') {
         let t = result.zeit
         let ts = 0;
         if (t.lastIndexOf('d') !== -1) {
@@ -374,7 +369,7 @@ async function readDP(dp) {
         ts*=60000 
         result.zeit = ts
     } else result.zeit = 0
-    if (result.langzeit !== undefined) {
+    if (result.langzeit !== undefined && typeof result.langzeit == 'string') {
         let t = result.langzeit
         let ts = 0;
         if (t.lastIndexOf('d')!== -1) {
@@ -391,9 +386,12 @@ async function readDP(dp) {
         ts*=60000 
         result.langzeit = ts
     } else result.langzeit = 0
-    return Promise.resolve(result);
+
+    
+    return result as dataset;
+
     async function _createSingleState(tPath, p, result) {
-        let o = {"type": stateDef["_default"][p].type, name:p, desc:stateDef["_default"][p].desc}
+        let o = {"type": stateDef["_default"][p].type, name:p, desc:stateDef["_default"][p].desc, states: undefined}
         let def = stateDef["_default"][p].def
         if (lastTag && stateDef["lastTag"][lastTag][p]) def = stateDef["lastTag"][lastTag][p].def
         else if (firstTag && stateDef["firstTag"][firstTag][p]) def = stateDef["firstTag"][firstTag][p].def
@@ -402,7 +400,8 @@ async function readDP(dp) {
         if (stateDef["_default"][p].states !== undefined) o.states = stateDef["_default"][p].states
         await createStateAsync(tPath+'.'+p, def, o)
         result[p] = def
-        return Promise.resolve(result);
+        
+        return result;
     }
 }
 
@@ -419,6 +418,7 @@ async function addToEnum(enumName, newStateId) {
                 myEnum.common.members.push(newStateId);
                 myEnum.from = "system.adapter." + "0";
                 myEnum.ts = new Date().getTime();
+                //@ts-ignore
                 await setObjectAsync(enumName, myEnum);
                 Promise.resolve(true);
             } catch (e) {log(e + ' add id: ' + newStateId,'error')}
@@ -426,5 +426,8 @@ async function addToEnum(enumName, newStateId) {
     }
     return Promise.resolve(false);
 }
+
+type dataset = {id:string, dp:string, zeit:number, activ:boolean, langzeit:number, art: number, testwert: any, devTyp: 'state' | 'adapter' | 'script'}
+type datasetIncoming = {id:string, dp:string, zeit:number|string, activ:boolean, langzeit:number | string, art: number, testwert: any, devTyp: 'state' | 'adapter' | 'script'}
 
 init()
